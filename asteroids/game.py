@@ -208,15 +208,28 @@ class GameLevel(Scene):
 
         self.ship_x = self.master.root.winfo_width() / 2
         self.ship_y = self.master.root.winfo_height() - ship.height()
+
         self.ship_speed = 25
+        self.ship_missile_speed = 25
+        self.ship_missiles = []
 
         self.canvas.bind('<Right>', self.handle_move_right)
         self.canvas.bind('<Left>', self.handle_move_left)
+        self.canvas.bind('<space>', self.handle_fire)
 
     def update(self):
         super(GameLevel, self).update()
 
         self.ship.place(x=self.ship_x, y=self.ship_y, anchor='center')
+
+        for missile in self.ship_missiles:
+            if missile.y <= 0:
+                missile.destroy()
+                self.ship_missiles.remove(missile)
+                continue
+
+            missile.y -= self.ship_missile_speed
+            missile.place(x=missile.x, y=missile.y)
 
     def handle_move_right(self, event):
         if self.ship_x + self.ship.image.width() / 2 >= self.master.root.winfo_width():
@@ -229,3 +242,13 @@ class GameLevel(Scene):
             return
 
         self.ship_x -= self.ship_speed
+
+    def handle_fire(self, event):
+        image = util.load_image_photo('assets/missle.png')
+        missile = Label(self.canvas, image=image, background='black')
+        missile.image = image
+        missile.x = self.ship_x
+        missile.y = self.ship_y - self.ship.image.height() / 2
+        missile.pack()
+
+        self.ship_missiles.append(missile)
