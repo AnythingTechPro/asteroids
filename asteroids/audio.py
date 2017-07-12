@@ -8,7 +8,7 @@ class Audio(object):
         self.filename = filename
         self.playing = False
 
-    def play(self, loop=False, no_stop=True):
+    def play(self, loop=False, no_stop=False):
         if self.playing:
             return
 
@@ -66,5 +66,5 @@ class AudioManager(object):
     def unload(self, audio):
         self.remove_audio(audio)
 
-    def beep(self):
-        return winsound.MessageBeep()
+    def beep(self, *args, **kwargs):
+        return winsound.MessageBeep(*args, **kwargs)
