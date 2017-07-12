@@ -1,4 +1,6 @@
 import random
+import thread
+import time
 from Tkinter import *
 from tkFont import Font
 from asteroids import audio, util
@@ -218,10 +220,11 @@ class GameLevel(Scene):
         self.ship.pack()
 
         self.ship_speed = 25
-        self.ship_missile_speed = 25
+        self.ship_missile_speed = 30
         self.ship_missiles = []
+        self.num_missiles = 25
 
-        self.asteroid_speed = 10
+        self.asteroid_speed = 40
         self.asteroids = []
         self.num_asteroids = 15
 
@@ -231,15 +234,24 @@ class GameLevel(Scene):
         self.score = Label(self.canvas, text='', font=text_font,
             background='black', foreground='white')
 
-        self.score.x = ship.width()
-        self.score.y = ship.height()
+        self.score.x = 80
+        self.score.y = 20
         self.score.pack()
 
         self.end_game = None
 
+        self.moving_forward = False
+        self.moving_backward = False
         self.moving_right = False
         self.moving_left = False
         self.firing = False
+        self.paused = False
+
+        self.canvas.bind('<Up>', self.handle_move_forward)
+        self.canvas.bind('<KeyRelease-Up>', self.handle_move_forward_release)
+
+        self.canvas.bind('<Down>', self.handle_move_backward)
+        self.canvas.bind('<KeyRelease-Down>', self.handle_move_backward_release)
 
         self.canvas.bind('<Right>', self.handle_move_right)
         self.canvas.bind('<KeyRelease-Right>', self.handle_move_right_release)
@@ -250,7 +262,32 @@ class GameLevel(Scene):
         self.canvas.bind('<space>', self.handle_fire)
         self.canvas.bind('<KeyRelease-space>', self.handle_fire_release)
 
+        self.canvas.bind('<Return>', self.handle_pause)
+
+        self.current_time = 0
+        self.timer_active = True
+
+        self.time = Label(self.canvas, text='', font=text_font,
+            background='black', foreground='white')
+
+        self.time.x = self.master.root.winfo_width() - 80
+        self.time.y = 20
+        self.time.pack()
+
+        thread.start_new_thread(self.update_time, ())
+
+    def update_time(self):
+        while self.timer_active:
+            if self.paused:
+                continue
+
+            self.current_time += 1
+            time.sleep(1)
+
     def update(self):
+        if self.paused:
+            return
+
         super(GameLevel, self).update()
 
         if self.ship:
@@ -259,6 +296,10 @@ class GameLevel(Scene):
         if self.score:
             self.score.place(x=self.score.x, y=self.score.y, anchor='center')
             self.score['text'] = 'Score: %d' % self.current_score
+
+        if self.time:
+            self.time.place(x=self.time.x, y=self.time.y, anchor='center')
+            self.time['text'] = 'Time: %d' % self.current_time
 
         if self.end_game:
             self.end_game.place(x=self.end_game.x, y=self.end_game.y, anchor='center')
@@ -306,51 +347,51 @@ class GameLevel(Scene):
             asteroid.y += asteroid.speed
             asteroid.place(x=asteroid.x, y=asteroid.y)
 
-        if len(self.asteroids) >= self.num_asteroids:
-            return
-
-        self.handle_asteroid()
+        if len(self.asteroids) < self.num_asteroids:
+            self.handle_asteroid()
 
     def update_key(self):
         if not self.ship:
             return
 
-        if self.moving_right:
+        if self.moving_forward and not self.ship.y - self.ship.image.height() / 2 <= 0:
+            self.ship.y -= self.ship_speed
+        elif self.moving_backward and not self.ship.y + self.ship.image.height() / 2 >= self.master.root.winfo_height():
+            self.ship.y += self.ship_speed
+
+        if self.moving_right and not self.ship.x + self.ship.image.width() / 2 >= self.master.root.winfo_width():
             self.ship.x += self.ship_speed
-        elif self.moving_left:
+        elif self.moving_left and not self.ship.x - self.ship.image.width() / 2 <= 0:
             self.ship.x -= self.ship_speed
 
-        if self.firing:
+        if self.firing and len(self.ship_missiles) < self.num_missiles:
             self.handle_do_fire()
 
+    def handle_move_forward(self, event):
+        self.moving_forward = True
+
+    def handle_move_forward_release(self, event):
+        self.moving_forward = False
+
+    def handle_move_backward(self, event):
+        self.moving_backward = True
+
+    def handle_move_backward_release(self, event):
+        self.moving_backward = False
+
     def handle_move_right(self, event):
-        if not self.ship:
-            return
-
-        if self.ship.x + self.ship.image.width() / 2 >= self.master.root.winfo_width():
-            return
-
         self.moving_right = True
 
     def handle_move_right_release(self, event):
         self.moving_right = False
 
     def handle_move_left(self, event):
-        if not self.ship:
-            return
-
-        if self.ship.x - self.ship.image.width() / 2 <= 0:
-            return
-
         self.moving_left = True
 
     def handle_move_left_release(self, event):
         self.moving_left = False
 
     def handle_fire(self, event):
-        if not self.ship:
-            return
-
         self.firing = True
 
     def handle_fire_release(self, event):
@@ -360,13 +401,30 @@ class GameLevel(Scene):
         self.root.audio_manager.beep()
 
         image = util.load_image_photo('assets/missle.png')
+
+        # first gun
         missile = Label(self.canvas, image=image, background='black')
         self.ship_missiles.append(missile)
 
         missile.image = image
-        missile.x = self.ship.x
+        missile.x = self.ship.x - self.ship.image.width() / 2
         missile.y = self.ship.y - self.ship.image.height() / 2
         missile.pack()
+
+        # second gun
+        missile = Label(self.canvas, image=image, background='black')
+        self.ship_missiles.append(missile)
+
+        missile.image = image
+        missile.x = self.ship.x + self.ship.image.width() / 2
+        missile.y = self.ship.y - self.ship.image.height() / 2
+        missile.pack()
+
+    def handle_pause(self, event):
+        if not self.paused:
+            self.paused = True
+        else:
+            self.paused = False
 
     def handle_asteroid(self):
         images = [
@@ -381,7 +439,7 @@ class GameLevel(Scene):
         asteroid.image = image
         asteroid.x = random.randrange(0, self.master.root.winfo_width())
         asteroid.y = 0
-        asteroid.speed = random.randrange(self.asteroid_speed / 2, self.asteroid_speed)
+        asteroid.speed = random.random() * self.asteroid_speed
         asteroid.pack()
 
     def end(self):
@@ -403,6 +461,10 @@ class GameLevel(Scene):
 
         self.score.destroy()
         self.score = None
+
+        self.timer_active = False
+        self.time.destroy()
+        self.time = None
 
         text_font = Font(family='Pixeled', size=40)
         self.end_game = Label(self.canvas, text='Game Over...', font=text_font,
