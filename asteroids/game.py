@@ -237,9 +237,18 @@ class GameLevel(Scene):
 
         self.end_game = None
 
+        self.moving_right = False
+        self.moving_left = False
+        self.firing = False
+
         self.canvas.bind('<Right>', self.handle_move_right)
+        self.canvas.bind('<KeyRelease-Right>', self.handle_move_right_release)
+
         self.canvas.bind('<Left>', self.handle_move_left)
+        self.canvas.bind('<KeyRelease-Left>', self.handle_move_left_release)
+
         self.canvas.bind('<space>', self.handle_fire)
+        self.canvas.bind('<KeyRelease-space>', self.handle_fire_release)
 
     def update(self):
         super(GameLevel, self).update()
@@ -253,6 +262,8 @@ class GameLevel(Scene):
 
         if self.end_game:
             self.end_game.place(x=self.end_game.x, y=self.end_game.y, anchor='center')
+
+        self.update_key()
 
         for missile in self.ship_missiles:
             if not self.ship:
@@ -300,6 +311,18 @@ class GameLevel(Scene):
 
         self.handle_asteroid()
 
+    def update_key(self):
+        if not self.ship:
+            return
+
+        if self.moving_right:
+            self.ship.x += self.ship_speed
+        elif self.moving_left:
+            self.ship.x -= self.ship_speed
+
+        if self.firing:
+            self.handle_do_fire()
+
     def handle_move_right(self, event):
         if not self.ship:
             return
@@ -307,7 +330,10 @@ class GameLevel(Scene):
         if self.ship.x + self.ship.image.width() / 2 >= self.master.root.winfo_width():
             return
 
-        self.ship.x += self.ship_speed
+        self.moving_right = True
+
+    def handle_move_right_release(self, event):
+        self.moving_right = False
 
     def handle_move_left(self, event):
         if not self.ship:
@@ -316,12 +342,21 @@ class GameLevel(Scene):
         if self.ship.x - self.ship.image.width() / 2 <= 0:
             return
 
-        self.ship.x -= self.ship_speed
+        self.moving_left = True
+
+    def handle_move_left_release(self, event):
+        self.moving_left = False
 
     def handle_fire(self, event):
         if not self.ship:
             return
 
+        self.firing = True
+
+    def handle_fire_release(self, event):
+        self.firing = False
+
+    def handle_do_fire(self):
         self.root.audio_manager.beep()
 
         image = util.load_image_photo('assets/missle.png')
