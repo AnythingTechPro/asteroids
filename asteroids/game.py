@@ -146,6 +146,7 @@ class MainMenu(Scene):
             background='black', foreground='white')
 
         self.play_button.pack()
+
         self.play_button.bind('<Enter>', self.handle_mouse_enter_play)
         self.play_button.bind('<Leave>', self.handle_mouse_exit_play)
         self.play_button.bind('<Button-1>', self.handle_play)
@@ -154,6 +155,7 @@ class MainMenu(Scene):
             background='black', foreground='white')
 
         self.quit_button.pack()
+
         self.quit_button.bind('<Enter>', self.handle_mouse_enter_quit)
         self.quit_button.bind('<Leave>', self.handle_mouse_exit_quit)
         self.quit_button.bind('<Button-1>', self.handle_quit)
@@ -188,14 +190,14 @@ class MainMenu(Scene):
         self.quit_button.place(x=self.master.root.winfo_width() / 2, y=self.master.root.winfo_height() / 2 + self.logo.image.height(), anchor='center')
 
     def destroy(self):
-        super(MainMenu, self).destroy()
-
         self.music.stop()
         self.root.audio_manager.unload(self.music)
 
         self.logo.destroy()
         self.play_button.destroy()
         self.quit_button.destroy()
+
+        super(MainMenu, self).destroy()
 
 class GameLevel(Scene):
 
@@ -474,11 +476,22 @@ class GameLevel(Scene):
         self.end_game.y = self.master.root.winfo_height() / 2
         self.end_game.pack()
 
-        self.canvas.bind('<Escape>', self.handle_back)
+        self.canvas.bind('<Escape>', self.handle_replay)
+        self.canvas.bind('<Tab>', self.handle_back)
+
+    def handle_replay(self, event):
+        self.destroy()
+        self.root.current_scene = GameLevel
 
     def handle_back(self, event):
-        if self.ending_music.playing:
-            self.ending_music.stop()
+        self.destroy()
+        self.root.current_scene = MainMenu
+
+    def destroy(self):
+        self.music.stop()
+        self.root.audio_manager.unload(self.music)
+
+        if self.end_game:
+            self.end_game.destroy()
 
         super(GameLevel, self).destroy()
-        self.root.current_scene = GameLevel
